@@ -192,7 +192,71 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     
 	// Super
     [super viewDidLoad];
+    
+    if (self.enableSave == YES ) {
+//        添加手势
+        [self addLongPressToSaveImage];
+    }
 	
+}
+
+//添加手势
+- (void)addLongPressToSaveImage
+{
+    UILongPressGestureRecognizer *longPressGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longPressToSaveImage:)];
+    longPressGesture.delegate = self;
+    [self.view addGestureRecognizer:longPressGesture];
+    
+}
+
+//长按方法
+- (void)longPressToSaveImage:(UILongPressGestureRecognizer *)sender
+{
+    if (sender.state == UIGestureRecognizerStateBegan) {
+//        UIAlertView *alertView = [[UIAlertView alloc]initWithTitle:@"是否保存到本地相册" message:nil delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
+//        [alertView show];
+        UIAlertController *deleteAlter = [UIAlertController alertControllerWithTitle:@"" message:nil preferredStyle:UIAlertControllerStyleActionSheet];
+        
+        [deleteAlter addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+        
+        [deleteAlter addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+            
+            id <MWPhoto> photo = _photos[_currentPageIndex];
+            if (photo.isVideo == NO) {
+                UIImage *img = [self imageForPhoto:photo];
+                [self loadImageFinished:img];
+            }else {
+                [photo getVideoURL:^(NSURL *url) {
+                    UISaveVideoAtPathToSavedPhotosAlbum(url.absoluteString, self, @selector(image:didFinishSavingWithError:contextInfo:), (__bridge void *)self);
+                }];
+            }
+            
+            
+        }]];
+        
+        [self presentViewController:deleteAlter animated:YES completion:nil];
+    }
+}
+
+//保存图片到相册
+- (void)loadImageFinished:(UIImage *)image
+{
+    UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSavingWithError:contextInfo:), (__bridge void *)self);
+}
+
+//监听保存状态
+- (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo
+{
+    NSLog(@"image = %@, error = %@, contextInfo = %@", image, error, contextInfo);
+    if (error) {
+        [self showProgressHUDWithMessage:@"保存失败"];
+    }else{
+        UIAlertView *alertView = [[UIAlertView alloc]initWithTitle:@"保存成功" message:nil delegate:self cancelButtonTitle:@"确定" otherButtonTitles:nil, nil];
+        [self showProgressHUDWithMessage:@"保存成功"];
+
+        [alertView show];
+    }
+    
 }
 
 - (void)performLayout {
