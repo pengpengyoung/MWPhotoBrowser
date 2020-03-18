@@ -213,21 +213,27 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 - (void)longPressToSaveImage:(UILongPressGestureRecognizer *)sender
 {
     if (sender.state == UIGestureRecognizerStateBegan) {
-//        UIAlertView *alertView = [[UIAlertView alloc]initWithTitle:@"是否保存到本地相册" message:nil delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
-//        [alertView show];
-        UIAlertController *deleteAlter = [UIAlertController alertControllerWithTitle:@"" message:nil preferredStyle:UIAlertControllerStyleActionSheet];
+        //        UIAlertView *alertView = [[UIAlertView alloc]initWithTitle:@"是否保存到本地相册" message:nil delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
+        //        [alertView show];
+        UIAlertController *deleteAlter = [UIAlertController alertControllerWithTitle:@"保存到本地相册" message:nil preferredStyle:UIAlertControllerStyleActionSheet];
         
         [deleteAlter addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
         
         [deleteAlter addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
             
-            id <MWPhoto> photo = _photos[_currentPageIndex];
+            id <MWPhoto> photo = self->_photos[self->_currentPageIndex];
             if (photo.isVideo == NO) {
                 UIImage *img = [self imageForPhoto:photo];
                 [self loadImageFinished:img];
             }else {
                 [photo getVideoURL:^(NSURL *url) {
-                    UISaveVideoAtPathToSavedPhotosAlbum(url.absoluteString, self, @selector(image:didFinishSavingWithError:contextInfo:), (__bridge void *)self);
+                    NSString *tempFilePath = [url path];
+                    
+                    if (UIVideoAtPathIsCompatibleWithSavedPhotosAlbum(tempFilePath))
+                    {
+                        // Copy it to the camera roll.
+                        UISaveVideoAtPathToSavedPhotosAlbum(tempFilePath, self, @selector(video:didFinishSavingWithError:contextInfo:), (__bridge void *)self);
+                    }
                 }];
             }
             
@@ -244,20 +250,31 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSavingWithError:contextInfo:), (__bridge void *)self);
 }
 
+- (void)video:(NSString *)videoPath didFinishSavingWithError:(NSError *)error contextInfo: (void *)contextInfo {
+    
+    NSLog(@"image = %@, error = %@, contextInfo = %@", videoPath, error, contextInfo);
+    if (error) {
+        [self showHint:@"保存失败"];
+        
+    }else{
+        [self showHint:@"保存成功"];
+        
+    }
+    
+}
+
 //监听保存状态
 - (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo
 {
     NSLog(@"image = %@, error = %@, contextInfo = %@", image, error, contextInfo);
     if (error) {
-        [self showProgressHUDWithMessage:@"保存失败"];
+        [self showHint:@"保存失败"];
     }else{
-        UIAlertView *alertView = [[UIAlertView alloc]initWithTitle:@"保存成功" message:nil delegate:self cancelButtonTitle:@"确定" otherButtonTitles:nil, nil];
-        [self showProgressHUDWithMessage:@"保存成功"];
-
-        [alertView show];
+        [self showHint:@"保存成功"];
     }
     
 }
+
 
 - (void)performLayout {
     
@@ -1729,5 +1746,25 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     }
     self.navigationController.navigationBar.userInteractionEnabled = YES;
 }
+
+- (void)showHint:(NSString *)hint {
+    
+    if (hint == nil || [hint isKindOfClass:[NSNull class]]||hint.length == 0) {
+        hint = @"信息为空";
+    }
+    //显示提示信息
+    UIView *view = [[UIApplication sharedApplication].delegate window];
+    MBProgressHUD *hud = [MBProgressHUD showHUDAddedTo:view animated:YES];
+    hud.cornerRadius = 4.0f;
+    hud.userInteractionEnabled = NO;
+    hud.mode = MBProgressHUDModeText;
+    hud.labelText = nil;
+    hud.detailsLabelText = hint;
+    hud.detailsLabelFont = [UIFont systemFontOfSize:17];
+    hud.margin = 18.f;
+    hud.removeFromSuperViewOnHide = YES;
+    [hud hide:YES afterDelay:2];
+}
+
 
 @end
